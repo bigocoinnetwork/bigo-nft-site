@@ -178,7 +178,7 @@
     <div>
       <div class="eyebrow"><span class="dot"></span>Bigo Network Collection · Polygon</div>
       <h1>The road to <span class="hl">listing</span> starts with us.</h1>
-      <p class="lead">9,998 NFTs at $4 each. Every sale funds BigoCoin's independent security audit, the first milestone on the road to getting BIGO listed. Every NFT is also eligible for a <b>500,000 BIGO</b> reward for early supporters.</p>
+      <p class="lead">9,998 NFTs at $4 each. Every sale funds BigoCoin's independent security audit, the first milestone on the road to getting BIGO listed. Every NFT bought from the official sale is also eligible for a <b>500,000 BIGO</b> reward for early supporters.</p>
       <div class="ctas">
         <a class="btn dark" href="https://opensea.io/item/polygon/0x33c68838ba2e5a405d37be81050300b12082df22/1" target="_blank" rel="noopener">Get your NFT on OpenSea</a>
         <a class="btn" href="#claim">Claim 500,000 BIGO</a>
@@ -238,7 +238,7 @@
     <p>No big investors. No shortcuts. BigoCoin gets to the next level the way every real community project does: people who believe in it early show up and build it together. Every NFT is one more step toward the audit, and the audit is the first door to getting listed.</p>
     <div class="pillars">
       <div class="pillar"><b>Every $4 counts</b><span>Each NFT goes straight into the audit fund. The tracker above updates live from the chain.</span></div>
-      <div class="pillar"><b>Early supporters first</b><span>Every NFT is eligible for 500,000 BIGO, reserved for the people who got here early.</span></div>
+      <div class="pillar"><b>Early supporters first</b><span>Every NFT bought from the official sale is eligible for 500,000 BIGO, reserved for the people who got here early.</span></div>
       <div class="pillar"><b>Bring your people</b><span>Share this page in Telegram, Discord and on socials. The faster it fills, the sooner the audit starts.</span></div>
     </div>
   </div>
@@ -246,16 +246,18 @@
   <section id="claim">
     <div class="eyebrow"><span class="dot"></span>Your NFT, your reward</div>
     <h2 class="section-title">Check and claim your BIGO</h2>
-    <p class="section-lead">Each NFT from this collection is eligible for a one-time reward of 500,000 BIGO on BNB Smart Chain.</p>
+    <p class="section-lead">Each NFT bought from the official sale is eligible for a one-time reward of 500,000 BIGO on BNB Smart Chain, paid to the wallet that bought it while it still holds the NFT.</p>
     <div class="tools">
       <div class="card">
-        <span class="badge">Claims open soon</span>
+        <span class="badge" id="cbadge">Claims open soon</span>
         <h3>Your eligibility</h3>
-        <p class="sub">Connect your wallet to see how many NFTs you hold and how much BIGO they're eligible for.</p>
+        <p class="sub">Connect the wallet you bought with. Each NFT bought from the official sale and still held in that wallet pays 500,000 BIGO, once.</p>
         <div class="claimbox">
           <div class="row"><span>Wallet</span><b id="cw">Not connected</b></div>
-          <div class="row"><span>NFTs held</span><b id="cn">–</b></div>
-          <div class="row"><span>Eligible reward</span><b id="cb">–</b></div>
+          <div class="row"><span>Bought from the official sale</span><b id="cbought">–</b></div>
+          <div class="row"><span>Still held</span><b id="cn">–</b></div>
+          <div class="row"><span>Already claimed</span><b id="cclaimed">–</b></div>
+          <div class="row"><span>Ready to claim</span><b id="cb">–</b></div>
         </div>
         <div class="ctas">
           <button class="btn dark" id="connectBtn" type="button">Connect wallet</button>
@@ -293,7 +295,7 @@
     <h2 class="section-title">Good questions</h2>
     <div class="faq">
       <details><summary>What does my $4 pay for?</summary><p>Sales from this collection fund BigoCoin's independent security audit, the first step on the road to listing. How any funds beyond the audit cost are used will be announced in the Telegram and Discord.</p></details>
-      <details><summary>How do I get my 500,000 BIGO?</summary><p>Each NFT from this collection is eligible for a one-time reward of 500,000 BIGO on BNB Smart Chain. Claims are not open yet. When they open, you'll claim on this page with the wallet that holds your NFT, and the date will be announced in the community channels first.</p></details>
+      <details><summary>How do I get my 500,000 BIGO?</summary><p>Buy from the official OpenSea listing, keep the NFT in the wallet you bought with, and press Claim BIGO here with that wallet. The reward is paid on BNB Smart Chain, so you need a small amount of BNB for the transaction fee. Each NFT is paid once. NFTs bought from other people on the secondary market are not eligible, because their reward belongs to the original buyer.</p></details>
       <details><summary>Where does the BIGO come from?</summary><p>From a reserve wallet set aside for NFT holders: <a class="mono" href="https://bscscan.com/address/0x577D663f97F70726ba34445877E79fC16022c879" target="_blank" rel="noopener">0x577D663f97F70726ba34445877E79fC16022c879</a>. It covers 500,000 BIGO for every NFT in the collection. Anyone can check it on BscScan.</p></details>
       <details><summary>Is the live tracker real?</summary><p>Yes. It reads the collection contract on Polygon directly: NFTs sold = 9,998 minus the NFTs still held by the sale wallet. The dollar amount is NFTs sold × $4.</p></details>
       <details><summary>Does this NFT give Miner app perks?</summary><p>No. Miner app mining bonuses come from the original BigoCoin NFT collection. This collection is a separate collectible that funds the audit and comes with the 500,000 BIGO reward.</p></details>
@@ -320,6 +322,7 @@
   </div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
 <script>
 (function(){
   var CONTRACT="0x33c68838bA2E5A405d37bE81050300b12082Df22";
@@ -376,18 +379,28 @@
   $("plus").onclick=function(){$("q").value=Math.min(FOR_SALE,(parseInt($("q").value,10)||0)+1);calc()};
   calc();
 
-  // wallet eligibility (read-only)
+  // wallet eligibility + claim
+  var BACKEND="https://bigocoin-backend-production.up.railway.app";
+  var CLAIM_ABI=["function claim(uint256 eligibleUnits,uint256 deadline,bytes signature)"];
+  var account=null, lastInfo=null;
+  function setBusy(b,label){ $("claimBtn").disabled=b||!(lastInfo&&lastInfo.claimsOpen&&lastInfo.claimable!=="0"); if(label)$("claimBtn").textContent=label; }
   async function checkWallet(addr){
+    account=addr;
     $("cw").textContent=addr.slice(0,6)+"…"+addr.slice(-4);
-    $("cstatus").textContent="Checking your NFTs on Polygon…";
+    $("cstatus").textContent="Checking your NFTs…";
     try{
-      var n=await ethCall(balanceData(addr));
-      $("cn").textContent=fmt(n);
-      $("cb").textContent=fmt(n*REWARD)+" BIGO";
-      $("cstatus").textContent=n>0
-        ? "You're an early supporter. Claims open soon, and the date will be announced in Telegram and Discord."
-        : "No NFTs from this collection in this wallet yet. Get one on OpenSea to become eligible.";
-    }catch(e){ $("cstatus").textContent="Couldn't reach Polygon right now. Please try again."; }
+      var r=await fetch(BACKEND+"/nft-eligibility?account="+addr); var d=await r.json();
+      if(!r.ok) throw new Error(d.error||"error");
+      lastInfo=d;
+      $("cbought").textContent=fmt(+d.bought); $("cn").textContent=fmt(+d.held); $("cclaimed").textContent=fmt(+d.claimed);
+      $("cb").textContent=fmt(+d.claimable*REWARD)+" BIGO";
+      $("cbadge").textContent=d.claimsOpen?"Claims open":"Claims open soon";
+      if(!d.claimsOpen) $("cstatus").textContent=+d.claimable>0?"You're eligible. Claims open soon, and the date will be announced in Telegram and Discord.":"No eligible NFTs in this wallet yet.";
+      else if(+d.claimable>0) $("cstatus").textContent="You can claim "+fmt(+d.claimable*REWARD)+" BIGO now.";
+      else if(+d.eligible>0) $("cstatus").textContent="You've claimed the reward for all your eligible NFTs.";
+      else $("cstatus").textContent="No eligible NFTs in this wallet. Rewards go to wallets that bought from the official sale and still hold the NFTs.";
+      setBusy(false,"Claim BIGO");
+    }catch(e){ $("cstatus").textContent="Couldn't check eligibility right now. Please try again."; }
   }
   $("connectBtn").onclick=async function(){
     if(!window.ethereum){ $("cstatus").textContent="No wallet found. Open this page in MetaMask's built-in browser or install MetaMask."; return; }
@@ -395,6 +408,31 @@
       var accs=await window.ethereum.request({method:"eth_requestAccounts"});
       if(accs&&accs[0]){ $("connectBtn").textContent="Connected"; checkWallet(accs[0]); }
     }catch(e){ $("cstatus").textContent="Wallet connection was cancelled."; }
+  };
+  if(window.ethereum&&window.ethereum.on) window.ethereum.on("accountsChanged",function(a){ if(a&&a[0]) checkWallet(a[0]); });
+  $("claimBtn").onclick=async function(){
+    if(!account||typeof ethers==="undefined") return;
+    try{
+      setBusy(true,"Switching to BNB Chain…");
+      try{ await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:"0x38"}]}); }
+      catch(se){ if(se&&se.code===4902){ await window.ethereum.request({method:"wallet_addEthereumChain",params:[{chainId:"0x38",chainName:"BNB Smart Chain",nativeCurrency:{name:"BNB",symbol:"BNB",decimals:18},rpcUrls:["https://bsc-dataseed.binance.org/"],blockExplorerUrls:["https://bscscan.com"]}]}); } else throw se; }
+      setBusy(true,"Preparing claim…");
+      var r=await fetch(BACKEND+"/nft-claim-voucher",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({account:account})});
+      var v=await r.json(); if(!r.ok) throw new Error(v.error||"Claim request failed.");
+      setBusy(true,"Confirm in your wallet…");
+      var provider=new ethers.BrowserProvider(window.ethereum);
+      var signerW=await provider.getSigner();
+      var c=new ethers.Contract(v.claimContract,CLAIM_ABI,signerW);
+      var tx=await c.claim(v.eligibleUnits,v.deadline,v.signature);
+      setBusy(true,"Confirming on-chain…");
+      await tx.wait();
+      $("cstatus").innerHTML="Claimed "+fmt(+v.humanAmount)+" BIGO. <a href=\"https://bscscan.com/tx/"+tx.hash+"\" target=\"_blank\" rel=\"noopener\">View transaction</a>";
+      await checkWallet(account);
+      $("cstatus").innerHTML="Claimed "+fmt(+v.humanAmount)+" BIGO. <a href=\"https://bscscan.com/tx/"+tx.hash+"\" target=\"_blank\" rel=\"noopener\">View transaction</a>";
+    }catch(e){
+      $("cstatus").textContent=(e&&(e.shortMessage||e.message))||"Claim failed.";
+      setBusy(false,"Claim BIGO");
+    }
   };
 })();
 </script>
